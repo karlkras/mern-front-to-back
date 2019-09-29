@@ -5,27 +5,6 @@ const auth = require('../../middleware/auth');
 const Profile = require('../../models/Profile');
 const User = require('../../models/Users');
 
-// @route   GET api/profile/me
-// @desc    Get current user's profile
-// @access  Private
-router.get('/me', auth, async (req, res) => {
-    try {
-        const profile =
-            await Profile.findOne({user: req.user.id}).populate(
-                'user',
-                ['name', 'avatar']
-            );
-
-        if (!profile) {
-            return res.status(400).json({msg: 'There is no profile for this user'});
-        }
-
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-});
-
 // @route   POST api/profile
 // @desc    Create or update a user profile
 // @access  Private
@@ -105,6 +84,29 @@ router.post(
     }
 );
 
+// @route   GET api/profile/me
+// @desc    Get current user's profile
+// @access  Private
+router.get('/me', auth, async (req, res) => {
+    try {
+        const profile =
+            await Profile.findOne({user: req.user.id}).populate(
+                'user',
+                ['name', 'avatar']
+            );
+
+        if (!profile) {
+            return res.status(400).json({msg: 'There is no profile for this user'});
+        }
+
+        res.json(profile);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // @route   GET api/profile
 // @desc    Get all profiles
 // @access  Public
@@ -154,6 +156,33 @@ router.delete('/', auth, async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
+    }
+});
+
+// @route   DELETE api/profile/experience/:exp_id
+// @desc    Delete an experience for a profile
+// @access  Private
+router.delete('/experience/:exp_id', auth, async (req, res) => {
+    try {
+        const foundProfile = await Profile.findOne({ user: req.user.id });
+        const expIds = foundProfile.experience.map(exp => exp._id.toString());
+        // if i dont add .toString() it returns this weird mongoose coreArray and the ids are somehow objects and it still deletes anyway even if you put /experience/5
+        const removeIndex = expIds.indexOf(req.params.exp_id);
+        if (removeIndex === -1) {
+            return res.status(500).json({ msg: "Server error" });
+        } else {
+            // theses console logs helped me figure it out
+            console.log("expIds", expIds);
+            console.log("typeof expIds", typeof expIds);
+            console.log("req.params", req.params);
+            console.log("removed", expIds.indexOf(req.params.exp_id));
+            foundProfile.experience.splice(removeIndex, 1);
+            await foundProfile.save();
+            return res.status(200).json(foundProfile);
+        }
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ msg: "Server error" });
     }
 });
 
